@@ -1,0 +1,5 @@
+onlyBuiltDependencies:
+  - esbuild
+
+overrides:
+  undici: 6.28.0

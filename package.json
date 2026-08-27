@@ -1,0 +1,37 @@
+{
+  "name": "upload-s3-artifact",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action compatible with upload-artifact, backed by S3",
+  "type": "module",
+  "packageManager": "pnpm@11.5.2",
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist",
+    "format": "biome format --write .",
+    "format:check": "biome check --error-on-warnings .",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "all": "pnpm format:check && pnpm lint && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/glob": "^0.5.0",
+    "@aws-sdk/client-s3": "^3.883.0",
+    "@aws-sdk/lib-storage": "^3.883.0",
+    "@aws-sdk/s3-request-presigner": "^3.883.0",
+    "archiver": "^7.0.1"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.3",
+    "@types/node": "^24.3.0",
+    "@vercel/ncc": "^0.38.3",
+    "eslint": "^9.34.0",
+    "@biomejs/biome": "^2.5.10",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.41.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

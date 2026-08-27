@@ -1,0 +1,77 @@
+name: Upload S3 Artifact
+description: Upload build artifacts to an S3-compatible storage backend
+author: LowderPlay
+
+inputs:
+  name:
+    description: Artifact name
+    default: artifact
+  path:
+    description: A file, directory, or multiline glob pattern describing what to upload
+    required: true
+  if-no-files-found:
+    description: Behavior when no files are found; one of warn, error, or ignore
+    default: warn
+  compression-level:
+    description: ZIP compression level from 0 to 9
+    default: '6'
+  overwrite:
+    description: Replace an existing object with the same key
+    default: 'false'
+  include-hidden-files:
+    description: Include files and directories whose names begin with a dot
+    default: 'false'
+  archive:
+    description: ZIP files before upload; false requires exactly one file
+    default: 'true'
+  s3-bucket:
+    description: Destination S3 bucket
+    required: true
+  s3-endpoint:
+    description: S3-compatible endpoint URL; omit for AWS S3
+    required: false
+  s3-region:
+    description: S3 region
+    default: us-east-1
+  s3-access-key-id:
+    description: Access key; omit to use the AWS SDK credential chain
+    required: false
+  s3-secret-access-key:
+    description: Secret key; omit to use the AWS SDK credential chain
+    required: false
+  s3-session-token:
+    description: Optional temporary credential session token
+    required: false
+  s3-force-path-style:
+    description: Use path-style S3 URLs (commonly needed by RustFS and other compatible servers)
+    default: 'false'
+  s3-key-prefix:
+    description: Object key prefix. Supports {owner}, {repo}, {run_id}, {run_attempt}, {job}, and {sha}
+    default: '{owner}/{repo}/{run_id}/{run_attempt}'
+  presigned-url:
+    description: Generate a presigned download URL
+    default: 'true'
+  presigned-url-expiration:
+    description: Presigned URL lifetime in seconds (1 to 604800)
+    default: '86400'
+  include-in-summary:
+    description: Add the artifact download link to the workflow run summary
+    default: 'true'
+
+outputs:
+  artifact-id:
+    description: S3 object key (S3 has no GitHub numeric artifact ID)
+  artifact-url:
+    description: Presigned artifact download URL, or empty when presigned-url is false
+  artifact-digest:
+    description: SHA-256 digest of the uploaded object
+  artifact-key:
+    description: S3 object key
+
+runs:
+  using: node24
+  main: dist/index.js
+
+branding:
+  icon: upload-cloud
+  color: orange
