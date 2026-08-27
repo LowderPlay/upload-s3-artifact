@@ -5,7 +5,7 @@ A GitHub Action that follows the `actions/upload-artifact` interface while stori
 ## Usage
 
 ```yaml
-- uses: LowderPlay/upload-s3-artifact@v1
+- uses: LowderPlay/upload-s3-artifact@v0.1.0
   with:
     name: build
     path: |
