@@ -14,12 +14,14 @@ A GitHub Action that follows the `actions/upload-artifact` interface while stori
     s3-bucket: ci-artifacts
     s3-region: us-east-1
     s3-endpoint: https://rustfs.example.com # omit for AWS
-    s3-access-key-id: ${{ secrets.S3_ACCESS_KEY_ID }}
+    s3-access-key-id: ${{ vars.S3_ACCESS_KEY_ID }}
     s3-secret-access-key: ${{ secrets.S3_SECRET_ACCESS_KEY }}
     s3-force-path-style: true
 ```
 
 Credentials can be omitted to use the standard AWS SDK credential chain. On AWS, OIDC with `aws-actions/configure-aws-credentials` is recommended over long-lived keys.
+
+Store the access-key ID as a GitHub Actions **variable**, not a secret, when generating presigned links. Presigned URLs contain the ID in `X-Amz-Credential`; if the ID is registered as a GitHub secret, GitHub replaces it with `***` in outputs and job summaries, invalidating the URL. The secret access key must always remain a GitHub secret.
 
 To disable the run-summary entry:
 
