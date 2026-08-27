@@ -28,6 +28,20 @@ describe('prepareArtifact', () => {
     expect(artifact.temporary).toBe(false)
   })
 
+  it('digests files larger than the stream high-water mark without stalling', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'upload-s3-artifact-test-'))
+    temporary.push(root)
+    const file = path.join(root, 'large.bin')
+    const contents = Buffer.alloc(2 * 1024 * 1024, 42)
+    await writeFile(file, contents)
+    const artifact = await prepareArtifact(
+      [{ absolutePath: file, archivePath: 'large.bin' }],
+      false,
+      6
+    )
+    expect(artifact.size).toBe(contents.length)
+  })
+
   it('creates and cleans up a ZIP artifact', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'upload-s3-artifact-test-'))
     temporary.push(root)

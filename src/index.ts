@@ -96,4 +96,6 @@ async function run(): Promise<void> {
   }
 }
 
-await run()
+run().catch((error: unknown) => {
+  core.setFailed(error instanceof Error ? error.message : String(error))
+})

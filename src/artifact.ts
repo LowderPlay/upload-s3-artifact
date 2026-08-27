@@ -3,6 +3,7 @@ import { createReadStream, createWriteStream } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { Writable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import archiver from 'archiver'
 import type { UploadFile } from './files.js'
@@ -17,14 +18,14 @@ export interface PreparedArtifact {
 async function digestFile(file: string): Promise<{ digest: string; size: number }> {
   const hash = createHash('sha256')
   let size = 0
-  const source = createReadStream(file)
-  source.on('data', (chunk) => {
-    size += chunk.length
-    hash.update(chunk)
+  const digest = new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      size += chunk.length
+      hash.update(chunk)
+      callback()
+    }
   })
-  await pipeline(source, async function* (stream) {
-    for await (const chunk of stream) yield chunk
-  })
+  await pipeline(createReadStream(file), digest)
   return { digest: hash.digest('hex'), size }
 }
 

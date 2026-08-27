@@ -99508,386 +99508,6 @@ ZipStream.prototype.finalize = function() {
 
 /***/ }),
 
-/***/ 543:
-/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
-
-
-// EXPORTS
-__nccwpck_require__.d(__webpack_exports__, {
-  N: () => (/* binding */ cleanupArtifact),
-  A: () => (/* binding */ prepareArtifact)
-});
-
-// EXTERNAL MODULE: external "node:crypto"
-var external_node_crypto_ = __nccwpck_require__(7598);
-// EXTERNAL MODULE: external "node:fs"
-var external_node_fs_ = __nccwpck_require__(3024);
-// EXTERNAL MODULE: external "node:fs/promises"
-var promises_ = __nccwpck_require__(1455);
-// EXTERNAL MODULE: external "node:os"
-var external_node_os_ = __nccwpck_require__(8161);
-// EXTERNAL MODULE: external "node:path"
-var external_node_path_ = __nccwpck_require__(6760);
-var external_node_path_default = /*#__PURE__*/__nccwpck_require__.n(external_node_path_);
-;// CONCATENATED MODULE: external "node:stream/promises"
-const external_node_stream_promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:stream/promises");
-// EXTERNAL MODULE: ./node_modules/.pnpm/archiver@7.0.1/node_modules/archiver/index.js
-var archiver = __nccwpck_require__(2709);
-var archiver_default = /*#__PURE__*/__nccwpck_require__.n(archiver);
-;// CONCATENATED MODULE: ./src/artifact.ts
-
-
-
-
-
-
-
-async function digestFile(file) {
-    const hash = (0,external_node_crypto_.createHash)('sha256');
-    let size = 0;
-    const source = (0,external_node_fs_.createReadStream)(file);
-    source.on('data', (chunk) => {
-        size += chunk.length;
-        hash.update(chunk);
-    });
-    await (0,external_node_stream_promises_namespaceObject.pipeline)(source, async function* (stream) {
-        for await (const chunk of stream)
-            yield chunk;
-    });
-    return { digest: hash.digest('hex'), size };
-}
-async function prepareArtifact(files, archive, compressionLevel) {
-    if (!archive) {
-        const file = files[0];
-        if (files.length !== 1 || !file) {
-            throw new Error(`When 'archive' is false, exactly one file is required; found ${files.length}`);
-        }
-        return {
-            ...(await digestFile(file.absolutePath)),
-            file: file.absolutePath,
-            temporary: false
-        };
-    }
-    const target = external_node_path_default().join((0,external_node_os_.tmpdir)(), `upload-s3-artifact-${(0,external_node_crypto_.randomUUID)()}.zip`);
-    const output = (0,external_node_fs_.createWriteStream)(target, { flags: 'wx' });
-    const zip = archiver_default()('zip', { zlib: { level: compressionLevel } });
-    const completed = new Promise((resolve, reject) => {
-        output.on('close', resolve);
-        output.on('error', reject);
-        zip.on('warning', reject);
-        zip.on('error', reject);
-    });
-    zip.pipe(output);
-    for (const file of files)
-        zip.file(file.absolutePath, { name: file.archivePath });
-    await zip.finalize();
-    await completed;
-    return { ...(await digestFile(target)), file: target, temporary: true };
-}
-async function cleanupArtifact(artifact) {
-    if (artifact?.temporary)
-        await (0,promises_.rm)(artifact.file, { force: true });
-}
-
-
-/***/ }),
-
-/***/ 5713:
-/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
-
-/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   l: () => (/* binding */ findFiles)
-/* harmony export */ });
-/* harmony import */ var node_fs_promises__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(1455);
-/* harmony import */ var node_fs_promises__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(node_fs_promises__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(6760);
-/* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(node_path__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _actions_glob__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3313);
-/* harmony import */ var _actions_glob__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__nccwpck_require__.n(_actions_glob__WEBPACK_IMPORTED_MODULE_2__);
-
-
-
-function isHidden(file) {
-    return node_path__WEBPACK_IMPORTED_MODULE_1___default().relative(process.cwd(), file)
-        .split((node_path__WEBPACK_IMPORTED_MODULE_1___default().sep))
-        .some((part) => part.startsWith('.') && part !== '.' && part !== '..');
-}
-function commonAncestor(paths) {
-    const firstPath = paths[0];
-    if (!firstPath)
-        throw new Error('Cannot find a common ancestor for an empty path list');
-    if (paths.length === 1)
-        return node_path__WEBPACK_IMPORTED_MODULE_1___default().dirname(firstPath);
-    const parts = paths.map((item) => node_path__WEBPACK_IMPORTED_MODULE_1___default().resolve(item).split((node_path__WEBPACK_IMPORTED_MODULE_1___default().sep)));
-    const firstParts = parts[0];
-    if (!firstParts)
-        throw new Error('Cannot find a common ancestor for an empty path list');
-    let length = 0;
-    while (parts.every((item) => item[length] === firstParts[length]))
-        length++;
-    const root = firstParts.slice(0, length).join((node_path__WEBPACK_IMPORTED_MODULE_1___default().sep));
-    return root || node_path__WEBPACK_IMPORTED_MODULE_1___default().parse(firstPath).root;
-}
-async function findFiles(patterns, includeHidden) {
-    const matcher = await _actions_glob__WEBPACK_IMPORTED_MODULE_2__.create(patterns, {
-        followSymbolicLinks: true,
-        implicitDescendants: true,
-        matchDirectories: false
-    });
-    const found = [];
-    for await (const candidate of matcher.globGenerator()) {
-        const stat = await (0,node_fs_promises__WEBPACK_IMPORTED_MODULE_0__.lstat)(candidate);
-        if (!stat.isFile() || (!includeHidden && isHidden(candidate)))
-            continue;
-        found.push(await (0,node_fs_promises__WEBPACK_IMPORTED_MODULE_0__.realpath)(candidate));
-    }
-    const unique = [...new Set(found)].sort();
-    if (unique.length === 0)
-        return [];
-    const root = commonAncestor(unique);
-    return unique.map((absolutePath) => ({
-        absolutePath,
-        archivePath: node_path__WEBPACK_IMPORTED_MODULE_1___default().relative(root, absolutePath).split((node_path__WEBPACK_IMPORTED_MODULE_1___default().sep)).join('/')
-    }));
-}
-
-
-/***/ }),
-
-/***/ 6866:
-/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
-
-__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
-/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   D: () => (/* binding */ expandPrefix),
-/* harmony export */   T: () => (/* binding */ objectKey)
-/* harmony export */ });
-/* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(6760);
-/* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(node_path__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(6966);
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _artifact_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(543);
-/* harmony import */ var _files_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(5713);
-/* harmony import */ var _inputs_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(6713);
-/* harmony import */ var _s3_js__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(4250);
-
-
-
-
-
-
-function safeSegment(value) {
-    return value.replaceAll('\\', '-').replaceAll('/', '-').replace(/^\.+$/, '_');
-}
-function expandPrefix(template) {
-    const [owner = '', repo = ''] = (process.env.GITHUB_REPOSITORY || '').split('/');
-    const values = {
-        owner,
-        repo,
-        run_id: process.env.GITHUB_RUN_ID || '',
-        run_attempt: process.env.GITHUB_RUN_ATTEMPT || '',
-        job: process.env.GITHUB_JOB || '',
-        sha: process.env.GITHUB_SHA || ''
-    };
-    return template
-        .replace(/\{(owner|repo|run_id|run_attempt|job|sha)\}/g, (_, name) => safeSegment(values[name] || ''))
-        .replace(/^\/+|\/+$/g, '');
-}
-function objectKey(inputs, directFile) {
-    if (!inputs.archive && !directFile)
-        throw new Error('A file path is required for direct upload');
-    const filename = inputs.archive
-        ? `${safeSegment(inputs.name)}.zip`
-        : node_path__WEBPACK_IMPORTED_MODULE_0___default().basename(directFile);
-    const prefix = expandPrefix(inputs.keyPrefix);
-    return prefix ? `${prefix}/${filename}` : filename;
-}
-async function run() {
-    let prepared;
-    try {
-        const inputs = (0,_inputs_js__WEBPACK_IMPORTED_MODULE_4__/* .getInputs */ .G)();
-        const files = await (0,_files_js__WEBPACK_IMPORTED_MODULE_3__/* .findFiles */ .l)(inputs.path, inputs.includeHiddenFiles);
-        if (files.length === 0) {
-            const message = `No files were found with the provided path: ${inputs.path}. No artifacts will be uploaded.`;
-            if (inputs.ifNoFilesFound === 'error')
-                throw new Error(message);
-            if (inputs.ifNoFilesFound === 'warn')
-                _actions_core__WEBPACK_IMPORTED_MODULE_1__.warning(message);
-            else
-                _actions_core__WEBPACK_IMPORTED_MODULE_1__.info(message);
-            return;
-        }
-        const firstFile = files[0];
-        if (!firstFile)
-            throw new Error('File discovery returned an invalid empty result');
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.info(`With the provided path, ${files.length} file${files.length === 1 ? '' : 's'} will be uploaded`);
-        prepared = await (0,_artifact_js__WEBPACK_IMPORTED_MODULE_2__/* .prepareArtifact */ .A)(files, inputs.archive, inputs.compressionLevel);
-        const key = objectKey(inputs, firstFile.absolutePath);
-        const client = (0,_s3_js__WEBPACK_IMPORTED_MODULE_5__/* .createS3Client */ .qo)(inputs);
-        if (!inputs.overwrite && (await (0,_s3_js__WEBPACK_IMPORTED_MODULE_5__/* .objectExists */ .EK)(client, inputs.bucket, key))) {
-            throw new Error(`Artifact 's3://${inputs.bucket}/${key}' already exists. Set overwrite: true to replace it.`);
-        }
-        await (0,_s3_js__WEBPACK_IMPORTED_MODULE_5__/* .uploadArtifact */ .mz)(client, inputs, key, prepared);
-        const url = inputs.presignedUrl
-            ? await (0,_s3_js__WEBPACK_IMPORTED_MODULE_5__/* .downloadUrl */ .Is)(client, inputs.bucket, key, inputs.presignedUrlExpiration, node_path__WEBPACK_IMPORTED_MODULE_0___default().basename(key))
-            : '';
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput('artifact-id', key);
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput('artifact-key', key);
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput('artifact-url', url);
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setOutput('artifact-digest', prepared.digest);
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.info(`Artifact uploaded to s3://${inputs.bucket}/${key} (${prepared.size} bytes)`);
-        if (inputs.includeInSummary) {
-            const target = url || `s3://${inputs.bucket}/${key}`;
-            const artifactName = inputs.archive ? inputs.name : node_path__WEBPACK_IMPORTED_MODULE_0___default().basename(firstFile.absolutePath);
-            await _actions_core__WEBPACK_IMPORTED_MODULE_1__.summary
-                .addHeading('Uploaded artifact', 3)
-                .addLink(artifactName, target)
-                .addRaw(` (${prepared.size} bytes, SHA-256: \`${prepared.digest}\`)`)
-                .write();
-        }
-    }
-    catch (error) {
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.setFailed(error instanceof Error ? error.message : String(error));
-    }
-    finally {
-        await (0,_artifact_js__WEBPACK_IMPORTED_MODULE_2__/* .cleanupArtifact */ .N)(prepared);
-    }
-}
-await run();
-
-__webpack_async_result__();
-} catch(e) { __webpack_async_result__(e); } }, 1);
-
-/***/ }),
-
-/***/ 6713:
-/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
-
-/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   G: () => (/* binding */ getInputs)
-/* harmony export */ });
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(6966);
-/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_0__);
-
-function integer(name, min, max) {
-    const raw = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(name);
-    const value = Number(raw);
-    if (!Number.isInteger(value) || value < min || value > max) {
-        throw new Error(`Input '${name}' must be an integer between ${min} and ${max}; got '${raw}'`);
-    }
-    return value;
-}
-function getInputs() {
-    const behavior = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('if-no-files-found');
-    if (!['warn', 'error', 'ignore'].includes(behavior)) {
-        throw new Error(`Input 'if-no-files-found' must be warn, error, or ignore; got '${behavior}'`);
-    }
-    const accessKeyId = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('s3-access-key-id') || undefined;
-    const secretAccessKey = _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('s3-secret-access-key') || undefined;
-    if (!!accessKeyId !== !!secretAccessKey) {
-        throw new Error("Inputs 's3-access-key-id' and 's3-secret-access-key' must be provided together");
-    }
-    return {
-        name: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('name') || 'artifact',
-        path: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('path', { required: true }),
-        ifNoFilesFound: behavior,
-        compressionLevel: integer('compression-level', 0, 9),
-        overwrite: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput('overwrite'),
-        includeHiddenFiles: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput('include-hidden-files'),
-        archive: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput('archive'),
-        bucket: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('s3-bucket', { required: true }),
-        endpoint: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('s3-endpoint') || undefined,
-        region: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('s3-region') || 'us-east-1',
-        accessKeyId,
-        secretAccessKey,
-        sessionToken: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('s3-session-token') || undefined,
-        forcePathStyle: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput('s3-force-path-style'),
-        keyPrefix: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput('s3-key-prefix'),
-        presignedUrl: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput('presigned-url'),
-        presignedUrlExpiration: integer('presigned-url-expiration', 1, 604800),
-        includeInSummary: _actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput('include-in-summary')
-    };
-}
-
-
-/***/ }),
-
-/***/ 4250:
-/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
-
-/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   EK: () => (/* binding */ objectExists),
-/* harmony export */   Is: () => (/* binding */ downloadUrl),
-/* harmony export */   mz: () => (/* binding */ uploadArtifact),
-/* harmony export */   qo: () => (/* binding */ createS3Client)
-/* harmony export */ });
-/* harmony import */ var node_fs__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(3024);
-/* harmony import */ var node_fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(node_fs__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _aws_sdk_client_s3__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(7059);
-/* harmony import */ var _aws_sdk_lib_storage__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(4515);
-/* harmony import */ var _aws_sdk_s3_request_presigner__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(7109);
-
-
-
-
-function createS3Client(inputs) {
-    const config = {
-        region: inputs.region,
-        endpoint: inputs.endpoint,
-        forcePathStyle: inputs.forcePathStyle
-    };
-    if (inputs.accessKeyId && inputs.secretAccessKey) {
-        config.credentials = {
-            accessKeyId: inputs.accessKeyId,
-            secretAccessKey: inputs.secretAccessKey,
-            sessionToken: inputs.sessionToken
-        };
-    }
-    return new _aws_sdk_client_s3__WEBPACK_IMPORTED_MODULE_2__.S3Client(config);
-}
-async function objectExists(client, bucket, key) {
-    try {
-        await client.send(new _aws_sdk_client_s3__WEBPACK_IMPORTED_MODULE_2__.HeadObjectCommand({ Bucket: bucket, Key: key }));
-        return true;
-    }
-    catch (error) {
-        const status = typeof error === 'object' && error !== null
-            ? error.$metadata?.httpStatusCode
-            : undefined;
-        if (error instanceof _aws_sdk_client_s3__WEBPACK_IMPORTED_MODULE_2__.NotFound || status === 404)
-            return false;
-        throw error;
-    }
-}
-async function uploadArtifact(client, inputs, key, artifact) {
-    const metadata = {
-        'sha256-digest': artifact.digest,
-        'github-run-id': process.env.GITHUB_RUN_ID || ''
-    };
-    const upload = new _aws_sdk_lib_storage__WEBPACK_IMPORTED_MODULE_1__/* .Upload */ ._({
-        client,
-        params: {
-            Bucket: inputs.bucket,
-            Key: key,
-            Body: (0,node_fs__WEBPACK_IMPORTED_MODULE_0__.createReadStream)(artifact.file),
-            ContentType: inputs.archive ? 'application/zip' : 'application/octet-stream',
-            ContentLength: artifact.size,
-            Metadata: metadata
-        }
-    });
-    await upload.done();
-}
-function downloadUrl(client, bucket, key, expiresIn, filename) {
-    return (0,_aws_sdk_s3_request_presigner__WEBPACK_IMPORTED_MODULE_3__/* .getSignedUrl */ .A)(client, new _aws_sdk_client_s3__WEBPACK_IMPORTED_MODULE_2__.GetObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        ResponseContentDisposition: `attachment; filename="${filename.replaceAll('"', '')}"`
-    }), { expiresIn });
-}
-
-
-/***/ }),
-
 /***/ 2613:
 /***/ ((module) => {
 
@@ -108603,75 +108223,6 @@ module.exports = index;
 /******/ }
 /******/ 
 /************************************************************************/
-/******/ /* webpack/runtime/async module */
-/******/ (() => {
-/******/ 	var webpackQueues = typeof Symbol === "function" ? Symbol("webpack queues") : "__webpack_queues__";
-/******/ 	var webpackExports = typeof Symbol === "function" ? Symbol("webpack exports") : "__webpack_exports__";
-/******/ 	var webpackError = typeof Symbol === "function" ? Symbol("webpack error") : "__webpack_error__";
-/******/ 	var resolveQueue = (queue) => {
-/******/ 		if(queue && queue.d < 1) {
-/******/ 			queue.d = 1;
-/******/ 			queue.forEach((fn) => (fn.r--));
-/******/ 			queue.forEach((fn) => (fn.r-- ? fn.r++ : fn()));
-/******/ 		}
-/******/ 	}
-/******/ 	var wrapDeps = (deps) => (deps.map((dep) => {
-/******/ 		if(dep !== null && typeof dep === "object") {
-/******/ 			if(dep[webpackQueues]) return dep;
-/******/ 			if(dep.then) {
-/******/ 				var queue = [];
-/******/ 				queue.d = 0;
-/******/ 				dep.then((r) => {
-/******/ 					obj[webpackExports] = r;
-/******/ 					resolveQueue(queue);
-/******/ 				}, (e) => {
-/******/ 					obj[webpackError] = e;
-/******/ 					resolveQueue(queue);
-/******/ 				});
-/******/ 				var obj = {};
-/******/ 				obj[webpackQueues] = (fn) => (fn(queue));
-/******/ 				return obj;
-/******/ 			}
-/******/ 		}
-/******/ 		var ret = {};
-/******/ 		ret[webpackQueues] = x => {};
-/******/ 		ret[webpackExports] = dep;
-/******/ 		return ret;
-/******/ 	}));
-/******/ 	__nccwpck_require__.a = (module, body, hasAwait) => {
-/******/ 		var queue;
-/******/ 		hasAwait && ((queue = []).d = -1);
-/******/ 		var depQueues = new Set();
-/******/ 		var exports = module.exports;
-/******/ 		var currentDeps;
-/******/ 		var outerResolve;
-/******/ 		var reject;
-/******/ 		var promise = new Promise((resolve, rej) => {
-/******/ 			reject = rej;
-/******/ 			outerResolve = resolve;
-/******/ 		});
-/******/ 		promise[webpackExports] = exports;
-/******/ 		promise[webpackQueues] = (fn) => (queue && fn(queue), depQueues.forEach(fn), promise["catch"](x => {}));
-/******/ 		module.exports = promise;
-/******/ 		body((deps) => {
-/******/ 			currentDeps = wrapDeps(deps);
-/******/ 			var fn;
-/******/ 			var getResult = () => (currentDeps.map((d) => {
-/******/ 				if(d[webpackError]) throw d[webpackError];
-/******/ 				return d[webpackExports];
-/******/ 			}))
-/******/ 			var promise = new Promise((resolve) => {
-/******/ 				fn = () => (resolve(getResult));
-/******/ 				fn.r = 0;
-/******/ 				var fnQueue = (q) => (q !== queue && !depQueues.has(q) && (depQueues.add(q), q && !q.d && (fn.r++, q.push(fn))));
-/******/ 				currentDeps.map((dep) => (dep[webpackQueues](fnQueue)));
-/******/ 			});
-/******/ 			return fn.r ? promise : getResult();
-/******/ 		}, (err) => ((err ? reject(promise[webpackError] = err) : outerResolve(exports)), resolveQueue(queue)));
-/******/ 		queue && queue.d < 0 && (queue.d = 0);
-/******/ 	};
-/******/ })();
-/******/ 
 /******/ /* webpack/runtime/compat get default export */
 /******/ (() => {
 /******/ 	// getDefaultExport function for compatibility with non-harmony modules
@@ -108756,13 +108307,335 @@ module.exports = index;
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
 /******/ 
 /************************************************************************/
-/******/ 
-/******/ // startup
-/******/ // Load entry module and return exports
-/******/ // This entry module used 'module' so it can't be inlined
-/******/ var __webpack_exports__ = __nccwpck_require__(6866);
-/******/ __webpack_exports__ = await __webpack_exports__;
-/******/ var __webpack_exports__expandPrefix = __webpack_exports__.D;
-/******/ var __webpack_exports__objectKey = __webpack_exports__.T;
-/******/ export { __webpack_exports__expandPrefix as expandPrefix, __webpack_exports__objectKey as objectKey };
-/******/ 
+var __webpack_exports__ = {};
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  D: () => (/* binding */ expandPrefix),
+  T: () => (/* binding */ objectKey)
+});
+
+// EXTERNAL MODULE: external "node:path"
+var external_node_path_ = __nccwpck_require__(6760);
+var external_node_path_default = /*#__PURE__*/__nccwpck_require__.n(external_node_path_);
+// EXTERNAL MODULE: ./node_modules/.pnpm/@actions+core@1.11.1/node_modules/@actions/core/lib/core.js
+var core = __nccwpck_require__(6966);
+// EXTERNAL MODULE: external "node:crypto"
+var external_node_crypto_ = __nccwpck_require__(7598);
+// EXTERNAL MODULE: external "node:fs"
+var external_node_fs_ = __nccwpck_require__(3024);
+// EXTERNAL MODULE: external "node:fs/promises"
+var promises_ = __nccwpck_require__(1455);
+// EXTERNAL MODULE: external "node:os"
+var external_node_os_ = __nccwpck_require__(8161);
+// EXTERNAL MODULE: external "node:stream"
+var external_node_stream_ = __nccwpck_require__(7075);
+;// CONCATENATED MODULE: external "node:stream/promises"
+const external_node_stream_promises_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:stream/promises");
+// EXTERNAL MODULE: ./node_modules/.pnpm/archiver@7.0.1/node_modules/archiver/index.js
+var archiver = __nccwpck_require__(2709);
+var archiver_default = /*#__PURE__*/__nccwpck_require__.n(archiver);
+;// CONCATENATED MODULE: ./src/artifact.ts
+
+
+
+
+
+
+
+
+async function digestFile(file) {
+    const hash = (0,external_node_crypto_.createHash)('sha256');
+    let size = 0;
+    const digest = new external_node_stream_.Writable({
+        write(chunk, _encoding, callback) {
+            size += chunk.length;
+            hash.update(chunk);
+            callback();
+        }
+    });
+    await (0,external_node_stream_promises_namespaceObject.pipeline)((0,external_node_fs_.createReadStream)(file), digest);
+    return { digest: hash.digest('hex'), size };
+}
+async function prepareArtifact(files, archive, compressionLevel) {
+    if (!archive) {
+        const file = files[0];
+        if (files.length !== 1 || !file) {
+            throw new Error(`When 'archive' is false, exactly one file is required; found ${files.length}`);
+        }
+        return {
+            ...(await digestFile(file.absolutePath)),
+            file: file.absolutePath,
+            temporary: false
+        };
+    }
+    const target = external_node_path_default().join((0,external_node_os_.tmpdir)(), `upload-s3-artifact-${(0,external_node_crypto_.randomUUID)()}.zip`);
+    const output = (0,external_node_fs_.createWriteStream)(target, { flags: 'wx' });
+    const zip = archiver_default()('zip', { zlib: { level: compressionLevel } });
+    const completed = new Promise((resolve, reject) => {
+        output.on('close', resolve);
+        output.on('error', reject);
+        zip.on('warning', reject);
+        zip.on('error', reject);
+    });
+    zip.pipe(output);
+    for (const file of files)
+        zip.file(file.absolutePath, { name: file.archivePath });
+    await zip.finalize();
+    await completed;
+    return { ...(await digestFile(target)), file: target, temporary: true };
+}
+async function cleanupArtifact(artifact) {
+    if (artifact?.temporary)
+        await (0,promises_.rm)(artifact.file, { force: true });
+}
+
+// EXTERNAL MODULE: ./node_modules/.pnpm/@actions+glob@0.5.1/node_modules/@actions/glob/lib/glob.js
+var glob = __nccwpck_require__(3313);
+;// CONCATENATED MODULE: ./src/files.ts
+
+
+
+function isHidden(file) {
+    return external_node_path_default().relative(process.cwd(), file)
+        .split((external_node_path_default()).sep)
+        .some((part) => part.startsWith('.') && part !== '.' && part !== '..');
+}
+function commonAncestor(paths) {
+    const firstPath = paths[0];
+    if (!firstPath)
+        throw new Error('Cannot find a common ancestor for an empty path list');
+    if (paths.length === 1)
+        return external_node_path_default().dirname(firstPath);
+    const parts = paths.map((item) => external_node_path_default().resolve(item).split((external_node_path_default()).sep));
+    const firstParts = parts[0];
+    if (!firstParts)
+        throw new Error('Cannot find a common ancestor for an empty path list');
+    let length = 0;
+    while (parts.every((item) => item[length] === firstParts[length]))
+        length++;
+    const root = firstParts.slice(0, length).join((external_node_path_default()).sep);
+    return root || external_node_path_default().parse(firstPath).root;
+}
+async function findFiles(patterns, includeHidden) {
+    const matcher = await glob.create(patterns, {
+        followSymbolicLinks: true,
+        implicitDescendants: true,
+        matchDirectories: false
+    });
+    const found = [];
+    for await (const candidate of matcher.globGenerator()) {
+        const stat = await (0,promises_.lstat)(candidate);
+        if (!stat.isFile() || (!includeHidden && isHidden(candidate)))
+            continue;
+        found.push(await (0,promises_.realpath)(candidate));
+    }
+    const unique = [...new Set(found)].sort();
+    if (unique.length === 0)
+        return [];
+    const root = commonAncestor(unique);
+    return unique.map((absolutePath) => ({
+        absolutePath,
+        archivePath: external_node_path_default().relative(root, absolutePath).split((external_node_path_default()).sep).join('/')
+    }));
+}
+
+;// CONCATENATED MODULE: ./src/inputs.ts
+
+function integer(name, min, max) {
+    const raw = core.getInput(name);
+    const value = Number(raw);
+    if (!Number.isInteger(value) || value < min || value > max) {
+        throw new Error(`Input '${name}' must be an integer between ${min} and ${max}; got '${raw}'`);
+    }
+    return value;
+}
+function getInputs() {
+    const behavior = core.getInput('if-no-files-found');
+    if (!['warn', 'error', 'ignore'].includes(behavior)) {
+        throw new Error(`Input 'if-no-files-found' must be warn, error, or ignore; got '${behavior}'`);
+    }
+    const accessKeyId = core.getInput('s3-access-key-id') || undefined;
+    const secretAccessKey = core.getInput('s3-secret-access-key') || undefined;
+    if (!!accessKeyId !== !!secretAccessKey) {
+        throw new Error("Inputs 's3-access-key-id' and 's3-secret-access-key' must be provided together");
+    }
+    return {
+        name: core.getInput('name') || 'artifact',
+        path: core.getInput('path', { required: true }),
+        ifNoFilesFound: behavior,
+        compressionLevel: integer('compression-level', 0, 9),
+        overwrite: core.getBooleanInput('overwrite'),
+        includeHiddenFiles: core.getBooleanInput('include-hidden-files'),
+        archive: core.getBooleanInput('archive'),
+        bucket: core.getInput('s3-bucket', { required: true }),
+        endpoint: core.getInput('s3-endpoint') || undefined,
+        region: core.getInput('s3-region') || 'us-east-1',
+        accessKeyId,
+        secretAccessKey,
+        sessionToken: core.getInput('s3-session-token') || undefined,
+        forcePathStyle: core.getBooleanInput('s3-force-path-style'),
+        keyPrefix: core.getInput('s3-key-prefix'),
+        presignedUrl: core.getBooleanInput('presigned-url'),
+        presignedUrlExpiration: integer('presigned-url-expiration', 1, 604800),
+        includeInSummary: core.getBooleanInput('include-in-summary')
+    };
+}
+
+// EXTERNAL MODULE: ./node_modules/.pnpm/@aws-sdk+client-s3@3.1118.0/node_modules/@aws-sdk/client-s3/dist-cjs/index.js
+var dist_cjs = __nccwpck_require__(7059);
+// EXTERNAL MODULE: ./node_modules/.pnpm/@aws-sdk+lib-storage@3.1118.0_@aws-sdk+client-s3@3.1118.0/node_modules/@aws-sdk/lib-storage/dist-cjs/index.js
+var lib_storage_dist_cjs = __nccwpck_require__(4515);
+// EXTERNAL MODULE: ./node_modules/.pnpm/@aws-sdk+s3-request-presigner@3.1118.0/node_modules/@aws-sdk/s3-request-presigner/dist-cjs/index.js
+var s3_request_presigner_dist_cjs = __nccwpck_require__(7109);
+;// CONCATENATED MODULE: ./src/s3.ts
+
+
+
+
+function createS3Client(inputs) {
+    const config = {
+        region: inputs.region,
+        endpoint: inputs.endpoint,
+        forcePathStyle: inputs.forcePathStyle
+    };
+    if (inputs.accessKeyId && inputs.secretAccessKey) {
+        config.credentials = {
+            accessKeyId: inputs.accessKeyId,
+            secretAccessKey: inputs.secretAccessKey,
+            sessionToken: inputs.sessionToken
+        };
+    }
+    return new dist_cjs.S3Client(config);
+}
+async function objectExists(client, bucket, key) {
+    try {
+        await client.send(new dist_cjs.HeadObjectCommand({ Bucket: bucket, Key: key }));
+        return true;
+    }
+    catch (error) {
+        const status = typeof error === 'object' && error !== null
+            ? error.$metadata?.httpStatusCode
+            : undefined;
+        if (error instanceof dist_cjs.NotFound || status === 404)
+            return false;
+        throw error;
+    }
+}
+async function uploadArtifact(client, inputs, key, artifact) {
+    const metadata = {
+        'sha256-digest': artifact.digest,
+        'github-run-id': process.env.GITHUB_RUN_ID || ''
+    };
+    const upload = new lib_storage_dist_cjs/* Upload */._({
+        client,
+        params: {
+            Bucket: inputs.bucket,
+            Key: key,
+            Body: (0,external_node_fs_.createReadStream)(artifact.file),
+            ContentType: inputs.archive ? 'application/zip' : 'application/octet-stream',
+            ContentLength: artifact.size,
+            Metadata: metadata
+        }
+    });
+    await upload.done();
+}
+function downloadUrl(client, bucket, key, expiresIn, filename) {
+    return (0,s3_request_presigner_dist_cjs/* getSignedUrl */.A)(client, new dist_cjs.GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ResponseContentDisposition: `attachment; filename="${filename.replaceAll('"', '')}"`
+    }), { expiresIn });
+}
+
+;// CONCATENATED MODULE: ./src/index.ts
+
+
+
+
+
+
+function safeSegment(value) {
+    return value.replaceAll('\\', '-').replaceAll('/', '-').replace(/^\.+$/, '_');
+}
+function expandPrefix(template) {
+    const [owner = '', repo = ''] = (process.env.GITHUB_REPOSITORY || '').split('/');
+    const values = {
+        owner,
+        repo,
+        run_id: process.env.GITHUB_RUN_ID || '',
+        run_attempt: process.env.GITHUB_RUN_ATTEMPT || '',
+        job: process.env.GITHUB_JOB || '',
+        sha: process.env.GITHUB_SHA || ''
+    };
+    return template
+        .replace(/\{(owner|repo|run_id|run_attempt|job|sha)\}/g, (_, name) => safeSegment(values[name] || ''))
+        .replace(/^\/+|\/+$/g, '');
+}
+function objectKey(inputs, directFile) {
+    if (!inputs.archive && !directFile)
+        throw new Error('A file path is required for direct upload');
+    const filename = inputs.archive
+        ? `${safeSegment(inputs.name)}.zip`
+        : external_node_path_default().basename(directFile);
+    const prefix = expandPrefix(inputs.keyPrefix);
+    return prefix ? `${prefix}/${filename}` : filename;
+}
+async function run() {
+    let prepared;
+    try {
+        const inputs = getInputs();
+        const files = await findFiles(inputs.path, inputs.includeHiddenFiles);
+        if (files.length === 0) {
+            const message = `No files were found with the provided path: ${inputs.path}. No artifacts will be uploaded.`;
+            if (inputs.ifNoFilesFound === 'error')
+                throw new Error(message);
+            if (inputs.ifNoFilesFound === 'warn')
+                core.warning(message);
+            else
+                core.info(message);
+            return;
+        }
+        const firstFile = files[0];
+        if (!firstFile)
+            throw new Error('File discovery returned an invalid empty result');
+        core.info(`With the provided path, ${files.length} file${files.length === 1 ? '' : 's'} will be uploaded`);
+        prepared = await prepareArtifact(files, inputs.archive, inputs.compressionLevel);
+        const key = objectKey(inputs, firstFile.absolutePath);
+        const client = createS3Client(inputs);
+        if (!inputs.overwrite && (await objectExists(client, inputs.bucket, key))) {
+            throw new Error(`Artifact 's3://${inputs.bucket}/${key}' already exists. Set overwrite: true to replace it.`);
+        }
+        await uploadArtifact(client, inputs, key, prepared);
+        const url = inputs.presignedUrl
+            ? await downloadUrl(client, inputs.bucket, key, inputs.presignedUrlExpiration, external_node_path_default().basename(key))
+            : '';
+        core.setOutput('artifact-id', key);
+        core.setOutput('artifact-key', key);
+        core.setOutput('artifact-url', url);
+        core.setOutput('artifact-digest', prepared.digest);
+        core.info(`Artifact uploaded to s3://${inputs.bucket}/${key} (${prepared.size} bytes)`);
+        if (inputs.includeInSummary) {
+            const target = url || `s3://${inputs.bucket}/${key}`;
+            const artifactName = inputs.archive ? inputs.name : external_node_path_default().basename(firstFile.absolutePath);
+            await core.summary
+                .addHeading('Uploaded artifact', 3)
+                .addLink(artifactName, target)
+                .addRaw(` (${prepared.size} bytes, SHA-256: \`${prepared.digest}\`)`)
+                .write();
+        }
+    }
+    catch (error) {
+        core.setFailed(error instanceof Error ? error.message : String(error));
+    }
+    finally {
+        await cleanupArtifact(prepared);
+    }
+}
+run().catch((error) => {
+    core.setFailed(error instanceof Error ? error.message : String(error));
+});
+
+var __webpack_exports__expandPrefix = __webpack_exports__.D;
+var __webpack_exports__objectKey = __webpack_exports__.T;
+export { __webpack_exports__expandPrefix as expandPrefix, __webpack_exports__objectKey as objectKey };
